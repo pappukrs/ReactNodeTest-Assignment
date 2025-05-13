@@ -7,10 +7,11 @@ import dayjs from 'dayjs';
 import { useFormik } from 'formik';
 import { useEffect, useState } from 'react';
 import { LiaMousePointerSolid } from 'react-icons/lia';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { MeetingSchema } from 'schema';
 import { getApi, postApi } from 'services/api';
+import { addMeeting, fetchMeetingData } from '../../../../redux/slices/meetingSlice.js';
 
 const AddMeeting = (props) => {
     const { onClose, isOpen, setAction, from, fetchData, view } = props
@@ -21,12 +22,9 @@ const AddMeeting = (props) => {
     const [leadModelOpen, setLeadModel] = useState(false);
     const todayTime = new Date().toISOString().split('.')[0];
     const leadData = useSelector((state) => state?.leadData?.data);
-
-
     const user = JSON.parse(localStorage.getItem('user'))
-
     const contactList = useSelector((state) => state?.contactData?.data)
-
+    const dispatch = useDispatch();
 
     const initialValues = {
         agenda: '',
@@ -42,23 +40,39 @@ const AddMeeting = (props) => {
     const formik = useFormik({
         initialValues: initialValues,
         validationSchema: MeetingSchema,
-        onSubmit: (values, { resetForm }) => {
-            
+        onSubmit: async (values, { resetForm }) => {
+            setIsLoding(true);
+            try {
+                await dispatch(addMeeting(values));
+                toast.success('Meeting added successfully!');
+                resetForm();
+                onClose();
+                await fetchData();
+            } catch (error) {
+                toast.error('Failed to add meeting: ' + error.message);
+            } finally {
+                setIsLoding(false);
+            }
         },
     });
     const { errors, touched, values, handleBlur, handleChange, handleSubmit, setFieldValue } = formik
 
     const AddData = async () => {
-
+        
     };
 
     const fetchAllData = async () => {
-        
-    }
+        try {
+            await dispatch(fetchMeetingData());
+            toast.success('Meetings fetched successfully!'); // Optional: Notify user
+        } catch (error) {
+            toast.error('Failed to fetch meetings: ' + error.message); // Handle error
+        }
+    };
 
     useEffect(() => {
-
-    }, [props.id, values.related])
+        fetchAllData(); // Fetch meetings when the component mounts
+    }, [props.id, values.related]);
 
     const extractLabels = (selectedItems) => {
         return selectedItems.map((item) => item._id);
@@ -188,7 +202,7 @@ const AddMeeting = (props) => {
 
                 </ModalBody>
                 <ModalFooter>
-                    <Button size="sm" variant='brand' me={2} disabled={isLoding ? true : false} onClick={handleSubmit}>{isLoding ? <Spinner /> : 'Save'}</Button>
+                    <Button size="sm" variant='brand' me={2} disabled={isLoding} onClick={handleSubmit}>{isLoding ? <Spinner /> : 'Save'}</Button>
                     <Button sx={{
                         textTransform: "capitalize",
                     }} variant="outline"
@@ -198,6 +212,7 @@ const AddMeeting = (props) => {
                         }}>Close</Button>
                 </ModalFooter>
             </ModalContent>
+        
         </Modal>
     )
 }
